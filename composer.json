@@ -1,0 +1,21 @@
+{
+    "name":"movephp/routing",
+    "description": "Routing for Movephp framework",
+    "license": "Apache-2.0",
+    "require": {
+        "php": ">=7.1",
+        "psr/cache": "~1.0"
+    },
+    "require-dev": {
+        "movephp/classloader": "~1.0",
+        "symfony/cache": "^3.2"
+    },
+    "suggest": {
+        "movephp/classloader": "Needed for autosearch routing definitions in different classes"
+    },
+    "autoload": {
+        "psr-4": {
+            "Movephp\\Routing\\": "src/"
+        }
+    }
+}
