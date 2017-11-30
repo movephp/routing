@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Movephp\Routing\Route\Parameter;
 
 class ParameterArrStr extends ParameterArr

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Movephp\Routing;
 
 use Movephp\CallbackContainer\Container as CallbackContainer;
