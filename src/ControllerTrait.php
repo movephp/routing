@@ -7,16 +7,16 @@ trait ControllerTrait
     /**
      * @return self
      */
-    public function method()
+    public static function method()
     {
-        return new MethodPointing($this);
+        return new RouteActionPointer(get_called_class());
     }
 
     /**
      * @return self
      */
-    public function url()
+    /*public function url()
     {
-        //return new MethodPointing(get_called_class(), true);
-    }
+        return new RouteActionPointer(get_called_class(), true);
+    }*/
 }
