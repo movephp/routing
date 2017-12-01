@@ -30,7 +30,7 @@ class RouteActionPointer
     public function __call(string $methodName, array $arguments): array
     {
         if (!empty($arguments)) {
-            throw new \BadMethodCallException('Passing arguments is not allowed here');
+            throw new Exception\ArgumentsNotAllowedException('Passing arguments is not allowed here');
         }
         // todo: check that method exists in the action class
         return [$this->controllerClass, $methodName];
