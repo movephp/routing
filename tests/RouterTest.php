@@ -84,4 +84,25 @@ class RouterTest extends TestCase
         $router = new Routing\Router($routeBuilderMock);
         $router->$testingMethod(...$patterns);
     }
+
+    /**
+     *
+     */
+    public function testAdd(): void
+    {
+        $routeBuilderMock = $this->getMockBuilder(Routing\RouteBuilder::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $router = new Routing\Router($routeBuilderMock);
+
+        $routeMock1 = $this->getMockForAbstractClass(Routing\Route\RouteInterface::class);
+        $routeMock2 = $this->getMockForAbstractClass(Routing\Route\RouteInterface::class);
+
+        $router->add($routeMock1);
+        $router->add($routeMock2);
+        $this->assertEquals(
+            [$routeMock1, $routeMock2],
+            $router->getRoutes()
+        );
+    }
 }

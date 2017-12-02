@@ -42,24 +42,24 @@ class RouteBuilder
      * RouteBuilder constructor.
      * @param CallbackContainer $callbackFactory
      * @param string $routeClass
-     * @throws \InvalidArgumentException
+     * @throws Exception\InvalidRouteClassException
      */
     public function __construct(CallbackContainer $callbackFactory, string $routeClass = '')
     {
         $this->callbackFactory = $callbackFactory;
-        if($routeClass){
+        if ($routeClass) {
             if (!class_exists($routeClass)) {
-                throw new \InvalidArgumentException(sprintf('Class "%s" in not exists', $routeClass));
+                throw new Exception\InvalidRouteClassException(sprintf('Class "%s" in not exists', $routeClass));
             }
-            if(!is_subclass_of($routeClass, Route\RouteInterface::class)) {
-                throw new \InvalidArgumentException(sprintf(
+            if (!is_subclass_of($routeClass, Route\RouteInterface::class)) {
+                throw new Exception\InvalidRouteClassException(sprintf(
                     'Class "%s" does not implements "%s"',
                     $routeClass,
                     Route\RouteInterface::class
                 ));
             }
             if (!(new \ReflectionClass($routeClass))->isInstantiable()) {
-                throw new \InvalidArgumentException(sprintf('Class "%s" is not instantiable', $routeClass));
+                throw new Exception\InvalidRouteClassException(sprintf('Class "%s" is not instantiable', $routeClass));
             }
             $this->routeClass = $routeClass;
         }
@@ -70,6 +70,7 @@ class RouteBuilder
      */
     public function __clone()
     {
+        $this->httpMethods = [];
         $this->patterns = [];
         $this->authorization = null;
     }
@@ -104,13 +105,31 @@ class RouteBuilder
 
     /**
      * @param callable|array $action
+     * @throws Exception\PatternNotSetException
+     * @throws Exception\RouterNotSetException
      */
     public function call($action): void
     {
+        if (!$this->router) {
+            throw new Exception\RouterNotSetException(sprintf(
+                'Its required to set instance of %s with method %s::setRouter() before calling %s()',
+                Router::class, __CLASS__, __METHOD__
+            ));
+        }
+        if (empty($this->patterns)) {
+            throw new Exception\PatternNotSetException(sprintf(
+                'Its required to set at least one route pattern with method %s::init() before calling %s()',
+                Router::class, __CLASS__, __METHOD__
+            ));
+        }
+        $httpMethods = $this->httpMethods;
+        if (empty($httpMethods)) {
+            $httpMethods = [''];
+        }
         $actionCallback = $this->callbackFactory->make($action);
         $authorizationCallback = $this->authorization ? $this->callbackFactory->make($this->authorization) : null;
         foreach ($this->patterns as $pattern) {
-            foreach ($this->httpMethods as $httpMethod) {
+            foreach ($httpMethods as $httpMethod) {
                 $route = new $this->routeClass(
                     $httpMethod,
                     $pattern,
@@ -136,14 +155,12 @@ class RouteBuilder
                 ));
             }
         }
-        if (empty($httpMethods)) {
-            $httpMethods = [''];
-        }
         $this->httpMethods = $httpMethods;
     }
 
     /**
      * @param string[] $patterns
+     * @throws Exception\PatternNotSetException
      * @throws \InvalidArgumentException
      */
     private function setPatterns(array $patterns): void
@@ -157,7 +174,7 @@ class RouteBuilder
             }
         }
         if (empty($patterns)) {
-            throw new \InvalidArgumentException('$typePatterns must be an non-empty array');
+            throw new Exception\PatternNotSetException('$patterns must be an non-empty array');
         }
         $this->patterns = $patterns;
     }

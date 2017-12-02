@@ -100,4 +100,12 @@ class Router
     {
         $this->routes[] = $route;
     }
+
+    /**
+     * @return Route\RouteInterface[]
+     */
+    public function getRoutes(): array
+    {
+        return $this->routes;
+    }
 }

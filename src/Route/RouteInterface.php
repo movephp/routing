@@ -16,4 +16,9 @@ interface RouteInterface
      * @param CallbackContainer|null $authorization
      */
     public function __construct(string $httpMethod, string $pattern, CallbackContainer $action, CallbackContainer $authorization = null);
+
+    /**
+     * @return bool
+     */
+    public function isSerializable(): bool;
 }
