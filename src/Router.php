@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Movephp\Routing;
 
+use Psr\Http\Message\RequestInterface;
+
 class Router
 {
     /**
@@ -107,5 +109,14 @@ class Router
     public function getRoutes(): array
     {
         return $this->routes;
+    }
+
+    /**
+     * @param RequestInterface $request
+     * @return Route\ResolvingInterface|null
+     */
+    public function resolve(RequestInterface $request): ?Route\ResolvingInterface
+    {
+
     }
 }

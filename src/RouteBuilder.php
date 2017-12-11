@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Movephp\Routing;
 
-use Movephp\CallbackContainer\Container as CallbackContainer;
+use Movephp\CallbackContainer\ContainerInterface as CallbackContainer;
 
 class RouteBuilder
 {
@@ -17,6 +17,11 @@ class RouteBuilder
      * @var string
      */
     private $routeClass = Route\Route::class;
+
+    /**
+     * @var string
+     */
+    private $resolvingClass = Route\Resolving::class;
 
     /**
      * @var Router
@@ -34,34 +39,32 @@ class RouteBuilder
     private $patterns = [];
 
     /**
-     * @var null|callable|array
+     * @var null|Route\Resolving
      */
-    private $authorization = null;
+    private $resolving = null;
+
+    /**
+     * @var bool
+     */
+    private $isActionSet = false;
 
     /**
      * RouteBuilder constructor.
      * @param CallbackContainer $callbackFactory
      * @param string $routeClass
-     * @throws Exception\InvalidRouteClassException
+     * @param string $resolvingClass
      */
-    public function __construct(CallbackContainer $callbackFactory, string $routeClass = '')
-    {
+    public function __construct(
+        CallbackContainer $callbackFactory,
+        string $routeClass = '',
+        string $resolvingClass = ''
+    ) {
         $this->callbackFactory = $callbackFactory;
-        if ($routeClass) {
-            if (!class_exists($routeClass)) {
-                throw new Exception\InvalidRouteClassException(sprintf('Class "%s" in not exists', $routeClass));
-            }
-            if (!is_subclass_of($routeClass, Route\RouteInterface::class)) {
-                throw new Exception\InvalidRouteClassException(sprintf(
-                    'Class "%s" does not implements "%s"',
-                    $routeClass,
-                    Route\RouteInterface::class
-                ));
-            }
-            if (!(new \ReflectionClass($routeClass))->isInstantiable()) {
-                throw new Exception\InvalidRouteClassException(sprintf('Class "%s" is not instantiable', $routeClass));
-            }
+        if ($routeClass && $this->checkClassName($routeClass, Route\RouteInterface::class)) {
             $this->routeClass = $routeClass;
+        }
+        if ($resolvingClass && $this->checkClassName($resolvingClass, Route\ResolvingInterface::class)) {
+            $this->resolvingClass = $resolvingClass;
         }
     }
 
@@ -72,7 +75,8 @@ class RouteBuilder
     {
         $this->httpMethods = [];
         $this->patterns = [];
-        $this->authorization = null;
+        $this->resolving = null;
+        $this->isActionSet = false;
     }
 
     /**
@@ -94,22 +98,44 @@ class RouteBuilder
     }
 
     /**
-     * @param callable|array $authorization
+     * @param callable|array $filter
      * @return RouteBuilder
      */
-    public function when($authorization): self
+    public function filter($filter): self
     {
-        $this->authorization = $authorization;
+        $this->getResolving()->addFilterBefore(
+            $this->callbackFactory->make($filter)
+        );
+        return $this;
+    }
+
+    /**
+     * @param callable|array $filter
+     * @return RouteBuilder
+     */
+    public function out($filter): self
+    {
+        $this->getResolving()->addFilterAfter(
+            $this->callbackFactory->make($filter)
+        );
         return $this;
     }
 
     /**
      * @param callable|array $action
+     * @return RouteBuilder
      * @throws Exception\PatternNotSetException
      * @throws Exception\RouterNotSetException
+     * @throws \BadMethodCallException
      */
-    public function call($action): void
+    public function call($action): self
     {
+        if ($this->isActionSet) {
+            throw new \BadMethodCallException(sprintf(
+                'Only one call to the %s() method in a fluent interface of %s is allowed',
+                __METHOD__, __CLASS__
+            ));
+        }
         if (!$this->router) {
             throw new Exception\RouterNotSetException(sprintf(
                 'Its required to set instance of %s with method %s::setRouter() before calling %s()',
@@ -126,19 +152,24 @@ class RouteBuilder
         if (empty($httpMethods)) {
             $httpMethods = [''];
         }
-        $actionCallback = $this->callbackFactory->make($action);
-        $authorizationCallback = $this->authorization ? $this->callbackFactory->make($this->authorization) : null;
+        $this->getResolving()->setAction(
+            $this->callbackFactory->make($action)
+        );
         foreach ($this->patterns as $pattern) {
             foreach ($httpMethods as $httpMethod) {
+                /**
+                 * @var Route\RouteInterface $route
+                 */
                 $route = new $this->routeClass(
                     $httpMethod,
                     $pattern,
-                    $actionCallback,
-                    $authorizationCallback
+                    $this->getResolving()
                 );
                 $this->router->add($route);
+                $this->isActionSet = true;
             }
         }
+        return $this;
     }
 
     /**
@@ -177,5 +208,43 @@ class RouteBuilder
             throw new Exception\PatternNotSetException('$patterns must be an non-empty array');
         }
         $this->patterns = $patterns;
+    }
+
+    /**
+     * @return Route\ResolvingInterface
+     */
+    private function getResolving(): Route\ResolvingInterface
+    {
+        if (!$this->resolving) {
+            $this->resolving = new $this->resolvingClass();
+        }
+        return $this->resolving;
+    }
+
+    /**
+     * @param string $className
+     * @param string $requiredInterface
+     * @return bool
+     * @throws Exception\InvalidClassException
+     */
+    private function checkClassName(string $className, string $requiredInterface): bool
+    {
+        if (!class_exists($className)) {
+            throw new Exception\InvalidClassException(sprintf(
+                'Class "%s" in not exists, implementation of "%s" required',
+                $className, $requiredInterface
+            ));
+        }
+        if (!is_subclass_of($className, $requiredInterface)) {
+            throw new Exception\InvalidClassException(sprintf(
+                'Class "%s" does not implements "%s"',
+                $className,
+                $requiredInterface
+            ));
+        }
+        if (!(new \ReflectionClass($className))->isInstantiable()) {
+            throw new Exception\InvalidClassException(sprintf('Class "%s" is not instantiable', $className));
+        }
+        return true;
     }
 }

@@ -4,15 +4,14 @@
     "license": "Apache-2.0",
     "require": {
         "php": ">=7.1",
-        "psr/cache": "~1.0"
+        "psr/cache": "~1.0",
+        "psr/http-message": "~1.0",
+        "movephp/classloader": "~1.0",
+        "movephp/callback-container": "~2.0"
     },
     "require-dev": {
-        "movephp/callback-container": "~2.0",
-        "movephp/classloader": "~1.0",
-        "symfony/cache": "^3.2"
-    },
-    "suggest": {
-        "movephp/classloader": "Needed for autosearch routing definitions in different classes"
+        "symfony/cache": "^3.2",
+        "guzzlehttp/psr7": "~1.4"
     },
     "autoload": {
         "psr-4": {

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Movephp\Routing\Route;
 
-use Movephp\CallbackContainer\Container as CallbackContainer;
-
 class Route implements RouteInterface
 {
     /**
@@ -29,31 +27,23 @@ class Route implements RouteInterface
     private $parameters = [];
 
     /**
-     * @var CallbackContainer
+     * @var ResolvingInterface
      */
-    private $action;
-
-    /**
-     * @var CallbackContainer|null
-     */
-    private $authorization = null;
+    private $resolving;
 
     /**
      * Route constructor.
      * @param string $httpMethod
      * @param string $pattern
-     * @param CallbackContainer $action
-     * @param CallbackContainer|null $authorization
+     * @param ResolvingInterface $resolving
      */
     public function __construct(
         string $httpMethod,
         string $pattern,
-        CallbackContainer $action,
-        CallbackContainer $authorization = null
+        ResolvingInterface $resolving
     ) {
         $this->httpMethod = $httpMethod;
-        $this->action = $action;
-        $this->authorization = $authorization;
+        $this->resolving = $resolving;
         $this->setPatternAndParameters($pattern);
         $this->checkParameters();
     }
@@ -63,9 +53,15 @@ class Route implements RouteInterface
      */
     public function isSerializable(): bool
     {
-        return
-            $this->action->isSerializable() &&
-            (is_null($this->authorization) || $this->authorization->isSerializable());
+        return $this->resolving->isSerializable();
+    }
+
+    /**
+     * @return ResolvingInterface
+     */
+    public function getResolving(): ResolvingInterface
+    {
+        return $this->resolving;
     }
 
     /**
@@ -94,7 +90,7 @@ class Route implements RouteInterface
          * @var \Movephp\CallbackContainer\Parameter[] $actionParameters
          */
         $actionParameters = [];
-        foreach ($this->action->parameters() as $parameter) {
+        foreach ($this->resolving->getAction()->parameters() as $parameter) {
             $actionParameters[$parameter->name()] = $parameter;
         }
 
