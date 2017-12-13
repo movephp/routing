@@ -23,9 +23,9 @@ class RouteBuilderTest extends TestCase
     public function routeClassProvider(): array
     {
         return [
-            ['NonExistentClass'],
-            [Fixtures\RouteClassNotImplementingInterface::class],
-            [Fixtures\RouteClassNonInstantiable::class]
+            'NonExistentClass'                   => ['NonExistentClass'],
+            'RouteClassNotImplementingInterface' => [Fixtures\RouteClassNotImplementingInterface::class],
+            'RouteClassNonInstantiable'          => [Fixtures\RouteClassNonInstantiable::class]
         ];
     }
 
@@ -36,20 +36,20 @@ class RouteBuilderTest extends TestCase
     public function testConstructorWithInvalidRouteClass(string $routeClass): void
     {
         $this->expectException(Routing\Exception\InvalidClassException::class);
-
         $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
-        new Routing\RouteBuilder($callbackContainerStub, $routeClass);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
+        new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub, $routeClass);
     }
 
     /**
      *
      */
-    public function testInitWidthInvalidHttpMethods(): void
+    public function testInitWithInvalidHttpMethods(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-
         $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
-        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub);
         $routeBuilder->init(
             [['non-string']],
             ['some-pattern']
@@ -59,12 +59,12 @@ class RouteBuilderTest extends TestCase
     /**
      *
      */
-    public function testInitWidthInvalidPatterns(): void
+    public function testInitWithInvalidPatterns(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-
         $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
-        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub);
         $routeBuilder->init(
             ['some-method'],
             [['non-string']]
@@ -74,12 +74,12 @@ class RouteBuilderTest extends TestCase
     /**
      *
      */
-    public function testInitWidthEmptyPatterns(): void
+    public function testInitWithEmptyPatterns(): void
     {
         $this->expectException(Routing\Exception\PatternNotSetException::class);
-
         $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
-        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub);
         $routeBuilder->init(
             ['some-method'],
             []
@@ -92,9 +92,9 @@ class RouteBuilderTest extends TestCase
     public function testCallWithoutRouter(): void
     {
         $this->expectException(Routing\Exception\RouterNotSetException::class);
-
         $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
-        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub);
         $routeBuilder->call([]);
     }
 
@@ -104,12 +104,12 @@ class RouteBuilderTest extends TestCase
     public function testCallWithoutPatterns(): void
     {
         $this->expectException(Routing\Exception\PatternNotSetException::class);
-
         $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
         $routerStub = $this->getMockBuilder(Routing\Router::class)
             ->disableOriginalConstructor()
             ->getMock();
-        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub);
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub);
         $routeBuilder->setRouter($routerStub);
         $routeBuilder->call([]);
     }
@@ -117,15 +117,88 @@ class RouteBuilderTest extends TestCase
     /**
      *
      */
+    public function testFilter(): void
+    {
+        $callbackStub = $this->getMockForAbstractClass(CallbackContainer::class);
+
+        $callbackContainerMock = $this->getMockForAbstractClass(CallbackContainer::class);
+        $callbackContainerMock->expects($this->once())
+            ->method('make')
+            ->with('myFilterBefore')
+            ->willReturn($callbackStub);
+
+        $resolvingMock = $this->getMockForAbstractClass(Routing\Route\ResolvingInterface::class);
+        $resolvingMock->expects($this->once())
+            ->method('addFilterBefore')
+            ->with($callbackStub);
+
+        $resolvingFactoryMock = $this->getMockBuilder(Routing\Route\ResolvingFactory::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['getCleanResolving'])
+            ->getMock();
+        $resolvingFactoryMock->expects($this->any())
+            ->method('getCleanResolving')
+            ->willReturn($resolvingMock);
+
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerMock, $resolvingFactoryMock);
+        $routeBuilder->filter('myFilterBefore');
+    }
+
+    /**
+     *
+     */
+    public function testOut(): void
+    {
+        $callbackStub = $this->getMockForAbstractClass(CallbackContainer::class);
+
+        $callbackContainerMock = $this->getMockForAbstractClass(CallbackContainer::class);
+        $callbackContainerMock->expects($this->once())
+            ->method('make')
+            ->with('myFilterAfter')
+            ->willReturn($callbackStub);
+
+        $resolvingMock = $this->getMockForAbstractClass(Routing\Route\ResolvingInterface::class);
+        $resolvingMock->expects($this->once())
+            ->method('addFilterAfter')
+            ->with($callbackStub);
+
+        $resolvingFactoryMock = $this->getMockBuilder(Routing\Route\ResolvingFactory::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['getCleanResolving'])
+            ->getMock();
+        $resolvingFactoryMock->expects($this->any())
+            ->method('getCleanResolving')
+            ->willReturn($resolvingMock);
+
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerMock, $resolvingFactoryMock);
+        $routeBuilder->out('myFilterAfter');
+    }
+
+    /**
+     *
+     */
     public function testCall(): void
     {
-        $callbackActionStub = $this->getMockForAbstractClass(CallbackContainer::class);
+        $callbackStub = $this->getMockForAbstractClass(CallbackContainer::class);
 
         $callbackContainerMock = $this->getMockForAbstractClass(CallbackContainer::class);
         $callbackContainerMock->expects($this->once())
             ->method('make')
             ->with($this->equalTo('myAction'))
-            ->willReturn($callbackActionStub);
+            ->willReturn($callbackStub);
+
+        $resolvingMock = $this->getMockForAbstractClass(Routing\Route\ResolvingInterface::class);
+        $resolvingMock->expects($this->once())
+            ->method('setAction')
+            ->with($callbackStub);
+
+        $resolvingFactoryMock = $this->getMockBuilder(Routing\Route\ResolvingFactory::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['getCleanResolving'])
+            ->getMock();
+        $resolvingFactoryMock->expects($this->any())
+            ->method('getCleanResolving')
+            ->willReturn($resolvingMock);
 
         $routeMock = $this->routeMock();
 
@@ -137,7 +210,7 @@ class RouteBuilderTest extends TestCase
             ->method('add')
             ->with($this->isInstanceOf(get_class($routeMock)));
 
-        $routeBuilder = new Routing\RouteBuilder($callbackContainerMock, get_class($routeMock));
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerMock, $resolvingFactoryMock, get_class($routeMock));
         $routeBuilder->setRouter($routerMock);
         $routeBuilder->init(
             ['method1', 'method2'],
@@ -147,10 +220,10 @@ class RouteBuilderTest extends TestCase
 
         $this->assertEquals(
             [
-                ['method1', 'pattern1', $callbackActionStub],
-                ['method2', 'pattern1', $callbackActionStub],
-                ['method1', 'pattern2', $callbackActionStub],
-                ['method2', 'pattern2', $callbackActionStub]
+                ['method1', 'pattern1', $resolvingMock],
+                ['method2', 'pattern1', $resolvingMock],
+                ['method1', 'pattern2', $resolvingMock],
+                ['method2', 'pattern2', $resolvingMock]
             ],
             $routeMock::$constructorArgs
         );
@@ -159,18 +232,71 @@ class RouteBuilderTest extends TestCase
     /**
      *
      */
-    public function testClearPatternsOnClone(): void
+    public function testCallWidthEmptyMethods(): void
     {
-        $callbackContainerMock = $this->getMockForAbstractClass(CallbackContainer::class);
+        $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
+        $resolvingStub = $this->getMockForAbstractClass(Routing\Route\ResolvingInterface::class);
 
-        $routeMock = $this->routeMock();
+        $resolvingFactoryMock = $this->getMockBuilder(Routing\Route\ResolvingFactory::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['getCleanResolving'])
+            ->getMock();
+        $resolvingFactoryMock->expects($this->any())
+            ->method('getCleanResolving')
+            ->willReturn($resolvingStub);
 
-        $routerMock = $this->getMockBuilder(Routing\Router::class)
+        $routerStub = $this->getMockBuilder(Routing\Router::class)
             ->disableOriginalConstructor()
             ->getMock();
 
-        $routeBuilder = new Routing\RouteBuilder($callbackContainerMock, get_class($routeMock));
-        $routeBuilder->setRouter($routerMock);
+        $routeMock = $this->routeMock();
+
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryMock, get_class($routeMock));
+        $routeBuilder->setRouter($routerStub);
+        $routeBuilder->init([], ['pattern']);
+        $routeBuilder->call('myAction');
+        $this->assertEquals(
+            [
+                ['', 'pattern', $resolvingStub]
+            ],
+            $routeMock::$constructorArgs
+        );
+    }
+
+    /**
+     *
+     */
+    public function testCallTwice(): void
+    {
+        $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
+        $routerStub = $this->getMockBuilder(Routing\Router::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $routeStub = $this->routeMock();
+
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub, get_class($routeStub));
+        $routeBuilder->setRouter($routerStub);
+        $routeBuilder->init([], ['pattern']);
+        $routeBuilder->call('myAction1');
+
+        $this->expectException(\BadMethodCallException::class);
+        $routeBuilder->call('myAction2');
+    }
+
+    /**
+     *
+     */
+    public function testClearPatternsOnClone(): void
+    {
+        $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
+        $resolvingFactoryStub = $this->createMock(Routing\Route\ResolvingFactory::class);
+        $routerStub = $this->getMockBuilder(Routing\Router::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub);
+        $routeBuilder->setRouter($routerStub);
         $routeBuilder->init([], ['pattern1']);
 
         $this->expectException(Routing\Exception\PatternNotSetException::class);

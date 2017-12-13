@@ -119,4 +119,31 @@ class Router
     {
 
     }
+
+    /**
+     * @param string $className
+     * @param string $requiredInterface
+     * @return bool
+     * @throws Exception\InvalidClassException
+     */
+    public static function checkClassName(string $className, string $requiredInterface): bool
+    {
+        if (!class_exists($className)) {
+            throw new Exception\InvalidClassException(sprintf(
+                'Class "%s" in not exists, implementation of "%s" required',
+                $className, $requiredInterface
+            ));
+        }
+        if (!is_subclass_of($className, $requiredInterface)) {
+            throw new Exception\InvalidClassException(sprintf(
+                'Class "%s" does not implements "%s"',
+                $className,
+                $requiredInterface
+            ));
+        }
+        if (!(new \ReflectionClass($className))->isInstantiable()) {
+            throw new Exception\InvalidClassException(sprintf('Class "%s" is not instantiable', $className));
+        }
+        return true;
+    }
 }

@@ -14,14 +14,14 @@ class RouteBuilder
     private $callbackFactory;
 
     /**
-     * @var string
+     * @var Route\ResolvingFactory
      */
-    private $routeClass = Route\Route::class;
+    private $resolvingFactory;
 
     /**
      * @var string
      */
-    private $resolvingClass = Route\Resolving::class;
+    private $routeClass = Route\Route::class;
 
     /**
      * @var Router
@@ -51,20 +51,19 @@ class RouteBuilder
     /**
      * RouteBuilder constructor.
      * @param CallbackContainer $callbackFactory
+     * @param Route\ResolvingFactory $resolvingFactory
      * @param string $routeClass
-     * @param string $resolvingClass
      */
     public function __construct(
         CallbackContainer $callbackFactory,
-        string $routeClass = '',
-        string $resolvingClass = ''
+        Route\ResolvingFactory $resolvingFactory,
+        string $routeClass = ''
     ) {
         $this->callbackFactory = $callbackFactory;
-        if ($routeClass && $this->checkClassName($routeClass, Route\RouteInterface::class)) {
+        $this->resolvingFactory = $resolvingFactory;
+
+        if ($routeClass && Router::checkClassName($routeClass, Route\RouteInterface::class)) {
             $this->routeClass = $routeClass;
-        }
-        if ($resolvingClass && $this->checkClassName($resolvingClass, Route\ResolvingInterface::class)) {
-            $this->resolvingClass = $resolvingClass;
         }
     }
 
@@ -216,35 +215,8 @@ class RouteBuilder
     private function getResolving(): Route\ResolvingInterface
     {
         if (!$this->resolving) {
-            $this->resolving = new $this->resolvingClass();
+            $this->resolving = $this->resolvingFactory->getCleanResolving();
         }
         return $this->resolving;
-    }
-
-    /**
-     * @param string $className
-     * @param string $requiredInterface
-     * @return bool
-     * @throws Exception\InvalidClassException
-     */
-    private function checkClassName(string $className, string $requiredInterface): bool
-    {
-        if (!class_exists($className)) {
-            throw new Exception\InvalidClassException(sprintf(
-                'Class "%s" in not exists, implementation of "%s" required',
-                $className, $requiredInterface
-            ));
-        }
-        if (!is_subclass_of($className, $requiredInterface)) {
-            throw new Exception\InvalidClassException(sprintf(
-                'Class "%s" does not implements "%s"',
-                $className,
-                $requiredInterface
-            ));
-        }
-        if (!(new \ReflectionClass($className))->isInstantiable()) {
-            throw new Exception\InvalidClassException(sprintf('Class "%s" is not instantiable', $className));
-        }
-        return true;
     }
 }
