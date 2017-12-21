@@ -232,7 +232,7 @@ class RouteBuilderTest extends TestCase
     /**
      *
      */
-    public function testCallWidthEmptyMethods(): void
+    public function testCallWithEmptyMethods(): void
     {
         $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
         $resolvingStub = $this->getMockForAbstractClass(Routing\Route\ResolvingInterface::class);
@@ -285,7 +285,8 @@ class RouteBuilderTest extends TestCase
     }
 
     /**
-     *
+     * There is no need to test the cleanup of $httpMethods when cloning, because if $patterns are cleared,
+     * method call() can not be called without calling init(), which means that $httpMethods will be overridden
      */
     public function testClearPatternsOnClone(): void
     {
@@ -297,11 +298,41 @@ class RouteBuilderTest extends TestCase
 
         $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryStub);
         $routeBuilder->setRouter($routerStub);
-        $routeBuilder->init([], ['pattern1']);
+        $routeBuilder->init([], ['pattern']);
 
         $this->expectException(Routing\Exception\PatternNotSetException::class);
         $routeBuilder = clone($routeBuilder);
         $routeBuilder->call('myAction');
+    }
+
+    /**
+     * Here we also test the possibility of calling the call() method again after cloning
+     */
+    public function testClearResolvingOnClone(): void
+    {
+        $callbackContainerStub = $this->getMockForAbstractClass(CallbackContainer::class);
+        $resolvingStub = $this->getMockForAbstractClass(Routing\Route\ResolvingInterface::class);
+
+        $resolvingFactoryMock = $this->getMockBuilder(Routing\Route\ResolvingFactory::class)
+            ->disableOriginalConstructor()
+            ->setMethods(['getCleanResolving'])
+            ->getMock();
+        $resolvingFactoryMock->expects($this->exactly(2))
+            ->method('getCleanResolving')
+            ->willReturn($resolvingStub);
+
+        $routerStub = $this->getMockBuilder(Routing\Router::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+
+        $routeBuilder = new Routing\RouteBuilder($callbackContainerStub, $resolvingFactoryMock);
+        $routeBuilder->setRouter($routerStub);
+        $routeBuilder->init([], ['pattern1']);
+        $routeBuilder->call('myAction1');
+
+        $routeBuilder = clone($routeBuilder);
+        $routeBuilder->init([], ['pattern2']);
+        $routeBuilder->call('myAction2');
     }
 
     /**
